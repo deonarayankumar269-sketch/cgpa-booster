@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+body {
+  background: #f8fafc;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@layer components {
+  /* Input */
+  .input-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400;
+  }
+
+  .input-field:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px #e0e7ff;
+  }
+
+  /* Primary Button */
+  .primary-button {
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold text-white transition;
+    background-color: #4f46e5;
+  }
+
+  .primary-button:hover {
+    background-color: #4338ca;
+  }
+
+  .primary-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px #e0e7ff;
+  }
+
+  .primary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Secondary Button */
+  .secondary-button {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition;
+  }
+
+  .secondary-button:hover {
+    background-color: #f8fafc;
+  }
+
+  /* Card */
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  }
+}
