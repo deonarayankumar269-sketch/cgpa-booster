@@ -14,7 +14,7 @@ export default function Register() {
   const submit=async e=>{e.preventDefault();const r=await dispatch(registerUser({...form,semester:Number(form.semester)}));if(registerUser.fulfilled.match(r))navigate("/dashboard",{replace:true})};
 
   return <main className="min-h-screen bg-slate-50 px-5 py-10"><div className="mx-auto max-w-2xl">
-    <div className="mb-8 flex items-center justify-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={22}/></div><b className="text-xl text-navy">Academic Hub</b></div>
+    <div className="mb-8 flex items-center justify-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={22}/></div><b className="text-xl text-navy">CGPA Booster</b></div>
     <div className="card p-8 sm:p-10"><h1 className="text-3xl font-bold text-navy">Create your account</h1><p className="mt-2 text-sm text-slate-500">Set up your student profile and start organizing your academic life.</p>
     {error&&<div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
     <form onSubmit={submit} className="mt-7 space-y-5">

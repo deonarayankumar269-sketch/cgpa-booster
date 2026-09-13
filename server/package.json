@@ -1,5 +1,5 @@
 {
-  "name": "academic-hub-server",
+  "name": "cgpa-booster-server",
   "version": "1.0.0",
   "private": true,
   "main": "src/server.js",

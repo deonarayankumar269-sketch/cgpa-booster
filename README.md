@@ -1,4 +1,4 @@
-# Academic Hub
+# CGPA Booster
 
 A student workspace for study resources, academic calculations and collaborative rooms.
 

@@ -41,7 +41,7 @@ export default function Room() {
   return <div className="min-h-screen bg-canvas">
     <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
       <button onClick={()=>navigate("/dashboard")} className="secondary-button px-3 py-2"><ArrowLeft size={17}/> Dashboard</button>
-      <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={19}/></div><b className="text-navy">Academic Hub</b></div>
+      <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={19}/></div><b className="text-navy">CGPA Booster</b></div>
     </div></header>
     <main className="mx-auto max-w-5xl px-5 py-8">
       <div className="card overflow-hidden">

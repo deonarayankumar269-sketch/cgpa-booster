@@ -140,5 +140,5 @@ app.use((err, _, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 
-connectDB().then(() => server.listen(PORT, () => console.log(`Academic Hub server on ${PORT}`)))
+connectDB().then(() => server.listen(PORT, () => console.log(`CGPA Booster server on ${PORT}`)))
   .catch(e => { console.error(e); process.exit(1); });

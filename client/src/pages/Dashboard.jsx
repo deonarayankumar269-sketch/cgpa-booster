@@ -21,7 +21,7 @@ export default function Dashboard(){
  const join=()=>room.trim()&&navigate(`/dashboard/rooms/${encodeURIComponent(room.trim())}`);
  return <div className="min-h-screen bg-canvas">
   <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-    <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={21}/></div><div><b className="text-base text-navy">Academic Hub</b><p className="text-xs text-slate-400">Student workspace</p></div></div>
+    <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={21}/></div><div><b className="text-base text-navy">CGPA Booster</b><p className="text-xs text-slate-400">Student workspace</p></div></div>
     <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><b className="text-sm text-slate-700">{user?.name}</b><p className="text-xs text-slate-400">{user?.course||"Student"}</p></div><button className="secondary-button px-3 py-2" onClick={()=>{dispatch(logout());navigate("/login",{replace:true})}}><LogOut size={17}/><span className="hidden sm:inline">Sign out</span></button></div>
   </div></header>
   <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
