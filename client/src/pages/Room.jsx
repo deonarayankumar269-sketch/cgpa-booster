@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Send, Users, GraduationCap } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -13,29 +13,30 @@ export default function Room() {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [online, setOnline] = useState(0);
+  const socketRef = useRef(null);
 
   const room = useMemo(() => decodeURIComponent(roomId || ""), [roomId]);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, { auth: { token } });
+    socketRef.current = socket;
+
     socket.on("connect", () => socket.emit("join-room", { roomId: room }));
-    socket.on("member-joined", () => setOnline(v => v + 1));
-    socket.on("member-left", () => setOnline(v => Math.max(0, v - 1)));
+    socket.on("room-count", ({ count }) => setOnline(count));
     socket.on("room-message", payload => setMessages(v => [...v, payload]));
-    return () => { socket.emit("leave-room", { roomId: room }); socket.disconnect(); };
+
+    return () => {
+      socket.emit("leave-room", { roomId: room });
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, [token, room]);
 
   const send = e => {
     e.preventDefault();
-    if (!message.trim()) return;
-    // The room socket is created per page lifecycle.
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on("connect", () => {
-      socket.emit("join-room", { roomId: room });
-      socket.emit("room-message", { roomId: room, message });
-      setMessage("");
-      setTimeout(() => socket.disconnect(), 100);
-    });
+    if (!message.trim() || !socketRef.current) return;
+    socketRef.current.emit("room-message", { roomId: room, message });
+    setMessage("");
   };
 
   return <div className="min-h-screen bg-canvas">
@@ -45,8 +46,8 @@ export default function Room() {
     </div></header>
     <main className="mx-auto max-w-5xl px-5 py-8">
       <div className="card overflow-hidden">
-        <div className="border-b border-slate-100 p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Study room</p><h1 className="mt-1 text-2xl font-bold text-navy">{room}</h1></div><div className="flex items-center gap-2 text-sm text-slate-500"><Users size={17}/>{online + 1} active</div></div></div>
-        <div className="min-h-[420px] space-y-3 bg-slate-50 p-6">{messages.length ? messages.map(m=><div key={m.id} className={`max-w-[80%] rounded-2xl px-4 py-3 ${m.userId===user?.id?"ml-auto bg-indigo-600 text-white":"bg-white border border-slate-200 text-slate-700"}`}><p className="text-sm">{m.message}</p></div>):<div className="grid h-[350px] place-items-center text-center text-slate-400"><div><Users className="mx-auto" size={32}/><p className="mt-3 font-semibold">Room is ready</p><p className="text-sm">Start the discussion with your classmates.</p></div></div>}</div>
+        <div className="border-b border-slate-100 p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Study room</p><h1 className="mt-1 text-2xl font-bold text-navy">{room}</h1></div><div className="flex items-center gap-2 text-sm text-slate-500"><Users size={17}/>{online} active</div></div></div>
+        <div className="min-h-[420px] space-y-3 bg-slate-50 p-6">{messages.length ? messages.map(m=><div key={m.id} className={`max-w-[80%] rounded-2xl px-4 py-3 ${String(m.userId)===String(user?.id)?"ml-auto bg-indigo-600 text-white":"bg-white border border-slate-200 text-slate-700"}`}><p className="text-sm">{m.message}</p></div>):<div className="grid h-[350px] place-items-center text-center text-slate-400"><div><Users className="mx-auto" size={32}/><p className="mt-3 font-semibold">Room is ready</p><p className="text-sm">Start the discussion with your classmates.</p></div></div>}</div>
         <form onSubmit={send} className="flex gap-3 border-t border-slate-100 p-5"><input className="input-field" value={message} onChange={e=>setMessage(e.target.value)} placeholder="Write a message..." /><button className="primary-button px-4"><Send size={17}/></button></form>
       </div>
     </main>

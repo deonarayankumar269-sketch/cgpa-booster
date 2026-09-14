@@ -22,6 +22,8 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 });
+app.use("/api", generalLimiter);
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
 app.use("/api/auth", authRoutes);
 
@@ -70,24 +72,44 @@ io.use((socket, next) => {
   } catch { next(new Error("Invalid session")); }
 });
 io.on("connection", socket => {
+  console.log("🟢 Socket connected:", socket.id, "user:", socket.user?.userId);
+
+  const broadcastCount = (roomId) => {
+    const size = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+    io.to(roomId).emit("room-count", { count: size });
+  };
+
   socket.on("join-room", ({ roomId }) => {
     if (!roomId?.trim()) return;
     const room = roomId.trim();
+    console.log("👥 Join room:", room, "by user:", socket.user?.userId);
     socket.join(room);
     socket.emit("room-joined", { roomId: room });
-    socket.to(room).emit("member-joined", { userId: socket.user.userId });
+    broadcastCount(room);
   });
+
   socket.on("leave-room", ({ roomId }) => {
     if (!roomId) return;
     socket.leave(roomId);
-    socket.to(roomId).emit("member-left", { userId: socket.user.userId });
+    broadcastCount(roomId);
   });
+
   socket.on("room-message", ({ roomId, message }) => {
+    console.log("💬 Message received:", { roomId, message, from: socket.user?.userId, socketRooms: [...socket.rooms] });
     if (!roomId || typeof message !== "string" || !message.trim()) return;
     io.to(roomId).emit("room-message", {
       id: `${socket.id}-${Date.now()}`, userId: socket.user.userId,
       message: message.trim(), createdAt: new Date().toISOString()
     });
+  });
+
+  socket.on("disconnecting", () => {
+    for (const room of socket.rooms) {
+      if (room !== socket.id) {
+        socket.leave(room);
+        broadcastCount(room);
+      }
+    }
   });
 });
 
