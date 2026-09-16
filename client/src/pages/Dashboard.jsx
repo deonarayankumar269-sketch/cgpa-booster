@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { BookOpen, Calculator, FileText, LogOut, Search, Users, Plus, ArrowUpRight, GraduationCap } from "lucide-react";
+import { BookOpen, Calculator, FileText, LogOut, Search, Users, Plus, ArrowUpRight, GraduationCap, X } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../redux/authSlice";
 
 const API=import.meta.env.VITE_API_URL||"http://localhost:5000/api";
 const starter=[["Data Structures",4,9],["Database Systems",4,8],["Operating Systems",3,8],["Computer Networks",3,9]];
+const RESOURCE_TYPES=["Notes","PYQ","Assignment","Question Bank","Other"];
+const emptyUpload={title:"",description:"",type:"Notes",subject:"",semester:1,branch:"",fileUrl:""};
 
 export default function Dashboard(){
  const {user,token}=useSelector(s=>s.auth),dispatch=useDispatch(),navigate=useNavigate();
  const [resources,setResources]=useState([]),[search,setSearch]=useState(""),[loading,setLoading]=useState(true);
  const [subjects,setSubjects]=useState(starter.map(([name,credits,gradePoint])=>({name,credits,gradePoint}))),[sgpa,setSgpa]=useState(null),[room,setRoom]=useState("");
+ const [showUpload,setShowUpload]=useState(false),[uploadForm,setUploadForm]=useState(emptyUpload),[uploadErrors,setUploadErrors]=useState([]),[uploading,setUploading]=useState(false);
  const headers=useMemo(()=>({Authorization:`Bearer ${token}`}),[token]);
  const fetchResources=async()=>{try{setLoading(true);const r=await axios.get(`${API}/resources`,{headers,params:{search,limit:8}});setResources(r.data.resources||[])}catch(e){console.error(e)}finally{setLoading(false)}};
  useEffect(()=>{if(token)fetchResources()},[token]);
@@ -19,6 +22,24 @@ export default function Dashboard(){
  const update=(i,k,v)=>setSubjects(s=>s.map((x,j)=>j===i?{...x,[k]:k==="name"?v:Number(v)}:x));
  const add=()=>setSubjects(s=>[...s,{name:"New Subject",credits:3,gradePoint:8}]);
  const join=()=>room.trim()&&navigate(`/dashboard/rooms/${encodeURIComponent(room.trim())}`);
+ const updateUpload=(k,v)=>setUploadForm(f=>({...f,[k]:v}));
+ const submitUpload=async(e)=>{
+   e.preventDefault();
+   setUploadErrors([]);
+   setUploading(true);
+   try{
+     await axios.post(`${API}/resources`,{...uploadForm,semester:Number(uploadForm.semester)},{headers});
+     setShowUpload(false);
+     setUploadForm(emptyUpload);
+     fetchResources();
+   }catch(err){
+     const errs=err.response?.data?.errors;
+     if(errs) setUploadErrors(errs.map(e=>e.message));
+     else setUploadErrors([err.response?.data?.message||"Unable to upload resource"]);
+   }finally{
+     setUploading(false);
+   }
+ };
  return <div className="min-h-screen bg-canvas">
   <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
     <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-600 p-2 text-white"><GraduationCap size={21}/></div><div><b className="text-base text-navy">CGPA Booster</b><p className="text-xs text-slate-400">Student workspace</p></div></div>
@@ -31,11 +52,40 @@ export default function Dashboard(){
       <div className="mt-5 space-y-3">{subjects.map((s,i)=><div key={i} className="grid grid-cols-[1fr_65px_75px] gap-2"><input className="input-field px-3 py-2 text-xs" value={s.name} onChange={e=>update(i,"name",e.target.value)}/><input className="input-field px-3 py-2 text-xs" type="number" value={s.credits} onChange={e=>update(i,"credits",e.target.value)}/><input className="input-field px-3 py-2 text-xs" type="number" value={s.gradePoint} onChange={e=>update(i,"gradePoint",e.target.value)}/></div>)}</div>
       <div className="mt-5 flex gap-2"><button className="secondary-button flex-1 px-3 py-2" onClick={add}><Plus size={16}/>Add</button><button className="primary-button flex-1 px-3 py-2" onClick={calc}>Calculate</button></div>
     </div>
-    <div className="card p-6"><IconBox icon={<BookOpen size={20}/>}/><h2 className="text-lg font-bold text-navy">Study Resources</h2><p className="mt-1 text-sm leading-6 text-slate-500">Find notes, PYQs, assignments and question banks.</p><div className="relative mt-5"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input className="input-field pl-10" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchResources()} placeholder="Search resources..."/></div><button className="primary-button mt-3 w-full" onClick={fetchResources}>Search resources</button><div className="mt-5 space-y-2">{loading?<p className="text-sm text-slate-400">Loading resources...</p>:resources.length?resources.slice(0,4).map(r=><a key={r._id} href={r.fileUrl} target="_blank" rel="noreferrer" className="group flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:bg-indigo-50/50"><div className="min-w-0"><p className="truncate text-sm font-semibold">{r.title}</p><p className="text-xs text-slate-400">{r.type} · {r.subject}</p></div><ArrowUpRight size={16} className="text-slate-300 group-hover:text-indigo-600"/></a>):<p className="text-sm text-slate-400">No matching resources found.</p>}</div></div>
+    <div className="card p-6">
+      <div className="flex items-start justify-between">
+        <IconBox icon={<BookOpen size={20}/>}/>
+        <button className="secondary-button px-3 py-1.5 text-xs" onClick={()=>setShowUpload(true)}><Plus size={14}/>Add</button>
+      </div>
+      <h2 className="text-lg font-bold text-navy">Study Resources</h2>
+      <p className="mt-1 text-sm leading-6 text-slate-500">Find notes, PYQs, assignments and question banks.</p>
+      <div className="relative mt-5"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input className="input-field pl-10" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchResources()} placeholder="Search resources..."/></div>
+      <button className="primary-button mt-3 w-full" onClick={fetchResources}>Search resources</button>
+      <div className="mt-5 space-y-2">{loading?<p className="text-sm text-slate-400">Loading resources...</p>:resources.length?resources.slice(0,4).map(r=><a key={r._id} href={r.fileUrl} target="_blank" rel="noreferrer" className="group flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:bg-indigo-50/50"><div className="min-w-0"><p className="truncate text-sm font-semibold">{r.title}</p><p className="text-xs text-slate-400">{r.type} · {r.subject}</p></div><ArrowUpRight size={16} className="text-slate-300 group-hover:text-indigo-600"/></a>):<p className="text-sm text-slate-400">No matching resources found.</p>}</div>
+    </div>
     <div className="card p-6"><IconBox icon={<Users size={20}/>}/><h2 className="text-lg font-bold text-navy">Study Rooms</h2><p className="mt-1 text-sm leading-6 text-slate-500">Join a room and collaborate with classmates in real time.</p><label className="mt-6 mb-2 block text-sm font-semibold">Room code</label><input className="input-field" value={room} onChange={e=>setRoom(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} placeholder="e.g. dsa-sem4"/><button className="primary-button mt-4 w-full" onClick={join}>Join study room <ArrowUpRight size={17}/></button><div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Room messaging is secured through your authenticated session.</div></div>
    </section>
    <section className="mt-7"><div className="card overflow-hidden"><div className="border-b border-slate-100 p-6"><h2 className="text-lg font-bold text-navy">Recent resources</h2><p className="mt-1 text-sm text-slate-500">Latest material available to your student community.</p></div>{resources.length?resources.map(r=><div key={r._id} className="flex items-center justify-between gap-4 border-b border-slate-100 p-5"><div className="flex min-w-0 items-center gap-4"><div className="rounded-xl bg-indigo-50 p-3 text-indigo-600"><FileText size={19}/></div><div className="min-w-0"><h3 className="truncate font-semibold">{r.title}</h3><p className="text-xs text-slate-400">{r.type} · {r.subject} · Semester {r.semester}</p></div></div><a href={r.fileUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">Open <ArrowUpRight size={16}/></a></div>):<div className="p-10 text-center text-sm text-slate-400">No resources available yet.</div>}</div></section>
-  </main></div>;
+  </main>
+  {showUpload&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div className="flex items-center justify-between"><h3 className="text-lg font-bold text-navy">Upload Resource</h3><button onClick={()=>{setShowUpload(false);setUploadErrors([])}}><X size={20} className="text-slate-400"/></button></div>
+      {uploadErrors.length>0&&<div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-600">{uploadErrors.map((e,i)=><p key={i}>{e}</p>)}</div>}
+      <form onSubmit={submitUpload} className="mt-4 space-y-3">
+        <input className="input-field" placeholder="Title" value={uploadForm.title} onChange={e=>updateUpload("title",e.target.value)}/>
+        <textarea className="input-field" placeholder="Description (optional)" rows={2} value={uploadForm.description} onChange={e=>updateUpload("description",e.target.value)}/>
+        <select className="input-field" value={uploadForm.type} onChange={e=>updateUpload("type",e.target.value)}>{RESOURCE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>
+        <input className="input-field" placeholder="Subject" value={uploadForm.subject} onChange={e=>updateUpload("subject",e.target.value)}/>
+        <div className="grid grid-cols-2 gap-3">
+          <input className="input-field" type="number" min="1" max="20" placeholder="Semester" value={uploadForm.semester} onChange={e=>updateUpload("semester",e.target.value)}/>
+          <input className="input-field" placeholder="Branch (optional)" value={uploadForm.branch} onChange={e=>updateUpload("branch",e.target.value)}/>
+        </div>
+        <input className="input-field" placeholder="File URL (e.g. Google Drive link)" value={uploadForm.fileUrl} onChange={e=>updateUpload("fileUrl",e.target.value)}/>
+        <button type="submit" disabled={uploading} className="primary-button w-full">{uploading?"Uploading...":"Upload Resource"}</button>
+      </form>
+    </div>
+  </div>}
+ </div>;
 }
 function Stat({label,value}){return <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4"><p className="text-xs text-slate-400">{label}</p><p className="mt-1 max-w-28 truncate text-xl font-bold">{value}</p></div>}
 function IconBox({icon}){return <div className="mb-4 inline-flex rounded-xl bg-indigo-50 p-2.5 text-indigo-600">{icon}</div>}
