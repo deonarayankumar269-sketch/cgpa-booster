@@ -1,6 +1,7 @@
 const express = require("express");
 const auth = require("../middleware/authMiddleware");
 const validate = require("../middleware/validate");
+const upload = require("../middleware/upload");
 const { resourceValidator } = require("../validators/resourceValidators");
 const {
   listResources,
@@ -15,6 +16,10 @@ const router = express.Router();
 
 router.get("/", auth, listResources);
 router.get("/:id", auth, getResource);
+router.post("/upload", auth, upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+  res.json({ fileUrl: req.file.path });
+});
 router.post("/", auth, resourceValidator, validate, createResource);
 router.put("/:id", auth, resourceValidator, validate, updateResource);
 router.delete("/:id", auth, deleteResource);

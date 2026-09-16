@@ -15,6 +15,7 @@ export default function Dashboard(){
  const [resources,setResources]=useState([]),[search,setSearch]=useState(""),[loading,setLoading]=useState(true);
  const [subjects,setSubjects]=useState(starter.map(([name,credits,gradePoint])=>({name,credits,gradePoint}))),[sgpa,setSgpa]=useState(null),[room,setRoom]=useState("");
  const [showUpload,setShowUpload]=useState(false),[uploadForm,setUploadForm]=useState(emptyUpload),[uploadErrors,setUploadErrors]=useState([]),[uploading,setUploading]=useState(false);
+ const [uploadMode,setUploadMode]=useState("link"),[file,setFile]=useState(null);
  const headers=useMemo(()=>({Authorization:`Bearer ${token}`}),[token]);
  const fetchResources=async()=>{try{setLoading(true);const r=await axios.get(`${API}/resources`,{headers,params:{search,limit:8}});setResources(r.data.resources||[])}catch(e){console.error(e)}finally{setLoading(false)}};
  useEffect(()=>{if(token)fetchResources()},[token]);
@@ -24,20 +25,43 @@ export default function Dashboard(){
  const join=()=>room.trim()&&navigate(`/dashboard/rooms/${encodeURIComponent(room.trim())}`);
  const updateUpload=(k,v)=>setUploadForm(f=>({...f,[k]:v}));
  const submitUpload=async(e)=>{
-   e.preventDefault();
-   setUploadErrors([]);
-   setUploading(true);
+  e.preventDefault();
+  setUploadErrors([]);
+  if(!uploadForm.title.trim()||!uploadForm.subject.trim()||(uploadMode==="link"&&!uploadForm.fileUrl.trim())||(uploadMode==="file"&&!file)){
+    setUploadErrors(["Please fill in Title, Subject, and provide a File URL or upload a file"]);
+    return;
+  }
+
+  setUploading(true);
+  try{
+    let fileUrl=uploadForm.fileUrl;
+    if(uploadMode==="file"){
+      const fd=new FormData();
+      fd.append("file",file);
+      const up=await axios.post(`${API}/resources/upload`,fd,{headers:{...headers,"Content-Type":"multipart/form-data"}});
+      fileUrl=up.data.fileUrl;
+    }
+    await axios.post(`${API}/resources`,{...uploadForm,fileUrl,semester:Number(uploadForm.semester)},{headers});
+    setShowUpload(false);
+    setUploadForm(emptyUpload);
+    setFile(null);
+    setUploadMode("link");
+    fetchResources();
+  }catch(err){
+    const errs=err.response?.data?.errors;
+    if(errs) setUploadErrors(errs.map(e=>e.message));
+    else setUploadErrors([err.response?.data?.message||"Unable to upload resource"]);
+  }finally{
+    setUploading(false);
+  }
+};
+  const deleteResource=async(id)=>{
+   if(!window.confirm("Delete this resource?")) return;
    try{
-     await axios.post(`${API}/resources`,{...uploadForm,semester:Number(uploadForm.semester)},{headers});
-     setShowUpload(false);
-     setUploadForm(emptyUpload);
+     await axios.delete(`${API}/resources/${id}`,{headers});
      fetchResources();
    }catch(err){
-     const errs=err.response?.data?.errors;
-     if(errs) setUploadErrors(errs.map(e=>e.message));
-     else setUploadErrors([err.response?.data?.message||"Unable to upload resource"]);
-   }finally{
-     setUploading(false);
+     alert(err.response?.data?.message||"Unable to delete resource");
    }
  };
  return <div className="min-h-screen bg-canvas">
@@ -65,7 +89,7 @@ export default function Dashboard(){
     </div>
     <div className="card p-6"><IconBox icon={<Users size={20}/>}/><h2 className="text-lg font-bold text-navy">Study Rooms</h2><p className="mt-1 text-sm leading-6 text-slate-500">Join a room and collaborate with classmates in real time.</p><label className="mt-6 mb-2 block text-sm font-semibold">Room code</label><input className="input-field" value={room} onChange={e=>setRoom(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} placeholder="e.g. dsa-sem4"/><button className="primary-button mt-4 w-full" onClick={join}>Join study room <ArrowUpRight size={17}/></button><div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Room messaging is secured through your authenticated session.</div></div>
    </section>
-   <section className="mt-7"><div className="card overflow-hidden"><div className="border-b border-slate-100 p-6"><h2 className="text-lg font-bold text-navy">Recent resources</h2><p className="mt-1 text-sm text-slate-500">Latest material available to your student community.</p></div>{resources.length?resources.map(r=><div key={r._id} className="flex items-center justify-between gap-4 border-b border-slate-100 p-5"><div className="flex min-w-0 items-center gap-4"><div className="rounded-xl bg-indigo-50 p-3 text-indigo-600"><FileText size={19}/></div><div className="min-w-0"><h3 className="truncate font-semibold">{r.title}</h3><p className="text-xs text-slate-400">{r.type} · {r.subject} · Semester {r.semester}</p></div></div><a href={r.fileUrl} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">Open <ArrowUpRight size={16}/></a></div>):<div className="p-10 text-center text-sm text-slate-400">No resources available yet.</div>}</div></section>
+   <section className="mt-7"><div className="card overflow-hidden"><div className="border-b border-slate-100 p-6"><h2 className="text-lg font-bold text-navy">Recent resources</h2><p className="mt-1 text-sm text-slate-500">Latest material available to your student community.</p></div>{resources.length?resources.map(r=><div key={r._id} className="flex items-center justify-between gap-4 border-b border-slate-100 p-5"><div className="flex min-w-0 items-center gap-4"><div className="rounded-xl bg-indigo-50 p-3 text-indigo-600"><FileText size={19}/></div><div className="min-w-0"><h3 className="truncate font-semibold">{r.title}</h3><p className="text-xs text-slate-400">{r.type} · {r.subject} · Semester {r.semester}</p></div></div><div className="flex shrink-0 items-center gap-2"><a href={r.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50">Open <ArrowUpRight size={16}/></a>{r.uploadedBy?._id===user?.id&&<button onClick={()=>deleteResource(r._id)} className="rounded-xl px-3 py-2 text-sm font-semibold text-red-500 hover:bg-red-50">Delete</button>}</div></div>):<div className="p-10 text-center text-sm text-slate-400">No resources available yet.</div>}</div></section>
   </main>
   {showUpload&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
@@ -78,7 +102,11 @@ export default function Dashboard(){
         <input className="input-field" placeholder="Subject" value={uploadForm.subject} onChange={e=>updateUpload("subject",e.target.value)}/>
         <div className="grid grid-cols-2 gap-3">
           <input className="input-field" type="number" min="1" max="20" placeholder="Semester" value={uploadForm.semester} onChange={e=>updateUpload("semester",e.target.value)}/>
-          <input className="input-field" placeholder="Branch (optional)" value={uploadForm.branch} onChange={e=>updateUpload("branch",e.target.value)}/>
+          <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+  <button type="button" onClick={()=>setUploadMode("link")} className={`flex-1 rounded-lg py-1.5 text-xs font-semibold ${uploadMode==="link"?"bg-white shadow text-navy":"text-slate-500"}`}>Paste Link</button>
+  <button type="button" onClick={()=>setUploadMode("file")} className={`flex-1 rounded-lg py-1.5 text-xs font-semibold ${uploadMode==="file"?"bg-white shadow text-navy":"text-slate-500"}`}>Upload File</button>
+</div>
+{uploadMode==="link"?<input className="input-field" placeholder="File URL (e.g. Google Drive link)" value={uploadForm.fileUrl} onChange={e=>updateUpload("fileUrl",e.target.value)}/>:<input className="input-field" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={e=>setFile(e.target.files[0])}/>}
         </div>
         <input className="input-field" placeholder="File URL (e.g. Google Drive link)" value={uploadForm.fileUrl} onChange={e=>updateUpload("fileUrl",e.target.value)}/>
         <button type="submit" disabled={uploading} className="primary-button w-full">{uploading?"Uploading...":"Upload Resource"}</button>
