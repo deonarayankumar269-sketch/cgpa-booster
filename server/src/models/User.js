@@ -3,7 +3,9 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, maxlength: 100 },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
+  password: { type: String, required: function () { return this.provider !== "google"; } },
+  provider: { type: String, enum: ["local", "google"], default: "local" },
+  googleId: { type: String, unique: true, sparse: true },
   university: { type: String, trim: true, default: "" },
   course: { type: String, trim: true, default: "" },
   branch: { type: String, trim: true, default: "" },
@@ -19,4 +21,4 @@ userSchema.set("toJSON", {
   }
 });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);

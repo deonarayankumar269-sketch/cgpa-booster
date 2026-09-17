@@ -25,6 +25,8 @@ app.use(morgan("dev"));
 const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 });
 app.use("/api", generalLimiter);
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+const passport = require("./config/passport");
+app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 
 const auth = require("./middleware/authMiddleware");

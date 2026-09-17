@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Room from "./pages/Room";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { loadCurrentUser } from "./redux/authSlice";
+import OAuthSuccess from "./pages/OAuthSuccess";
 
 export default function App(){
  const dispatch=useDispatch();
@@ -15,6 +16,7 @@ export default function App(){
    <Route path="/" element={<Navigate to="/dashboard" replace/>}/>
    <Route path="/login" element={<Login/>}/>
    <Route path="/register" element={<Register/>}/>
+   <Route path="/oauth-success" element={<OAuthSuccess/>}/>
    <Route element={<ProtectedRoute/>}>
      <Route path="/dashboard" element={<Dashboard/>}/>
      <Route path="/dashboard/rooms/:roomId" element={<Room/>}/>
