@@ -14,13 +14,30 @@ export default function Dashboard(){
  const {user,token}=useSelector(s=>s.auth),dispatch=useDispatch(),navigate=useNavigate();
  const [resources,setResources]=useState([]),[search,setSearch]=useState(""),[loading,setLoading]=useState(true);
  const [subjects,setSubjects]=useState(starter.map(([name,credits,gradePoint])=>({name,credits,gradePoint}))),[sgpa,setSgpa]=useState(null),[room,setRoom]=useState("");
+ const [calcError,setCalcError]=useState(""),[calculating,setCalculating]=useState(false);
  const [showUpload,setShowUpload]=useState(false),[uploadForm,setUploadForm]=useState(emptyUpload),[uploadErrors,setUploadErrors]=useState([]),[uploading,setUploading]=useState(false);
  const [uploadMode,setUploadMode]=useState("link"),[file,setFile]=useState(null);
  const headers=useMemo(()=>({Authorization:`Bearer ${token}`}),[token]);
  const fetchResources=async()=>{try{setLoading(true);const r=await axios.get(`${API}/resources`,{headers,params:{search,limit:8}});setResources(r.data.resources||[])}catch(e){console.error(e)}finally{setLoading(false)}};
  useEffect(()=>{if(token)fetchResources()},[token]);
- const calc=async()=>{const r=await axios.post(`${API}/academic/sgpa`,{subjects}, {headers});setSgpa(r.data.sgpa)};
- const update=(i,k,v)=>setSubjects(s=>s.map((x,j)=>j===i?{...x,[k]:k==="name"?v:Number(v)}:x));
+ const calc=async()=>{
+  setCalcError("");
+  const invalid=subjects.find(s=>!s.name.trim()||s.credits<=0||s.gradePoint<0||s.gradePoint>10);
+  if(invalid){
+    setCalcError(`Check "${invalid.name||"a subject"}": credits must be greater than 0, and grade point must be between 0 and 10.`);
+    return;
+  }
+  setCalculating(true);
+  try{
+    const r=await axios.post(`${API}/academic/sgpa`,{subjects}, {headers});
+    setSgpa(r.data.sgpa);
+  }catch(err){
+    setCalcError(err.response?.data?.message||"Unable to calculate SGPA. Please try again.");
+  }finally{
+    setCalculating(false);
+  }
+ };
+ const update=(i,k,v)=>{setCalcError("");setSubjects(s=>s.map((x,j)=>j===i?{...x,[k]:k==="name"?v:Number(v)}:x))};
  const add=()=>setSubjects(s=>[...s,{name:"New Subject",credits:3,gradePoint:8}]);
  const join=()=>room.trim()&&navigate(`/dashboard/rooms/${encodeURIComponent(room.trim())}`);
  const updateUpload=(k,v)=>setUploadForm(f=>({...f,[k]:v}));
@@ -73,8 +90,9 @@ export default function Dashboard(){
    <section className="rounded-3xl bg-navy p-7 text-white shadow-xl sm:p-9"><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><div><p className="text-sm font-semibold text-indigo-300">Good to see you</p><h1 className="mt-2 text-3xl font-bold sm:text-4xl">Welcome, {user?.name?.split(" ")[0]||"Student"}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Access your study resources, calculate academic performance and connect with classmates.</p></div><div className="grid grid-cols-2 gap-3 sm:grid-cols-3"><Stat label="Semester" value={user?.semester||1}/><Stat label="Branch" value={user?.branch||"Not set"}/><Stat label="Resources" value={resources.length}/></div></div></section>
    <section className="mt-7 grid gap-6 lg:grid-cols-3">
     <div className="card p-6"><IconBox icon={<Calculator size={20}/>}/><div className="flex items-start justify-between"><div><h2 className="text-lg font-bold text-navy">SGPA Calculator</h2><p className="mt-1 text-sm text-slate-500">Calculate your semester performance.</p></div>{sgpa!==null&&<div className="text-right"><p className="text-xs text-slate-400">SGPA</p><b className="text-3xl text-indigo-600">{sgpa}</b></div>}</div>
-      <div className="mt-5 space-y-3">{subjects.map((s,i)=><div key={i} className="grid grid-cols-[1fr_65px_75px] gap-2"><input className="input-field px-3 py-2 text-xs" value={s.name} onChange={e=>update(i,"name",e.target.value)}/><input className="input-field px-3 py-2 text-xs" type="number" value={s.credits} onChange={e=>update(i,"credits",e.target.value)}/><input className="input-field px-3 py-2 text-xs" type="number" value={s.gradePoint} onChange={e=>update(i,"gradePoint",e.target.value)}/></div>)}</div>
-      <div className="mt-5 flex gap-2"><button className="secondary-button flex-1 px-3 py-2" onClick={add}><Plus size={16}/>Add</button><button className="primary-button flex-1 px-3 py-2" onClick={calc}>Calculate</button></div>
+      {calcError&&<div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{calcError}</div>}
+      <div className="mt-5 space-y-3">{subjects.map((s,i)=><div key={i} className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_65px_75px]"><input className="input-field px-3 py-2 text-sm" value={s.name} onChange={e=>update(i,"name",e.target.value)}/><div className="grid grid-cols-2 gap-2 sm:contents"><input className="input-field px-3 py-2 text-xs" type="number" min="1" max="30" value={s.credits} onChange={e=>update(i,"credits",e.target.value)}/><input className="input-field px-3 py-2 text-xs" type="number" min="0" max="10" step="0.1" value={s.gradePoint} onChange={e=>update(i,"gradePoint",e.target.value)}/></div></div>)}</div>
+      <div className="mt-5 flex gap-2"><button className="secondary-button flex-1 px-3 py-2" onClick={add}><Plus size={16}/>Add</button><button disabled={calculating} className="primary-button flex-1 px-3 py-2" onClick={calc}>{calculating?"Calculating...":"Calculate"}</button></div>
     </div>
     <div className="card p-6">
       <div className="flex items-start justify-between">
@@ -108,12 +126,11 @@ export default function Dashboard(){
 </div>
 {uploadMode==="link"?<input className="input-field" placeholder="File URL (e.g. Google Drive link)" value={uploadForm.fileUrl} onChange={e=>updateUpload("fileUrl",e.target.value)}/>:<input className="input-field" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={e=>setFile(e.target.files[0])}/>}
         </div>
-        <input className="input-field" placeholder="File URL (e.g. Google Drive link)" value={uploadForm.fileUrl} onChange={e=>updateUpload("fileUrl",e.target.value)}/>
         <button type="submit" disabled={uploading} className="primary-button w-full">{uploading?"Uploading...":"Upload Resource"}</button>
       </form>
     </div>
   </div>}
  </div>;
 }
-function Stat({label,value}){return <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4"><p className="text-xs text-slate-400">{label}</p><p className="mt-1 max-w-28 truncate text-xl font-bold">{value}</p></div>}
+function Stat({label,value}){return <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4"><p className="text-xs text-slate-400">{label}</p><p className="mt-1 text-lg font-bold leading-tight" title={value}>{value}</p></div>}
 function IconBox({icon}){return <div className="mb-4 inline-flex rounded-xl bg-indigo-50 p-2.5 text-indigo-600">{icon}</div>}
