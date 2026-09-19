@@ -14,6 +14,7 @@ const authRoutes = require("./routes/authRoutes");
 const resourceRoutes = require("./routes/resourceRoutes");
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const PORT = Number(process.env.PORT) || 5000;
 const origins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",").map(x => x.trim()) : ["http://localhost:5173"];
